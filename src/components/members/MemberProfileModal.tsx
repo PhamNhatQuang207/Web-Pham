@@ -1,4 +1,6 @@
-import { X, Calendar, MapPin, Briefcase } from "lucide-react";
+"use client";
+
+import { X, Calendar, MapPin, Briefcase, BookOpen } from "lucide-react";
 import { useEffect, useState } from "react";
 import { IMember } from "@/models/Member";
 
@@ -13,100 +15,130 @@ export default function MemberProfileModal({ memberId, onClose }: MemberProfileM
 
   useEffect(() => {
     if (!memberId) return;
+    let cancelled = false;
 
-    const fetchMember = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/members/${memberId}`);
-        if (res.ok) {
-          const data = await res.json();
-          setMember(data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch member details", error);
-      } finally {
-        setLoading(false);
+    async function load() {
+      if (!cancelled) {
+        setMember(null);
+        setLoading(true);
       }
-    };
-
-    fetchMember();
+      try {
+        const r = await fetch(`/api/members/${memberId}`);
+        const data = r.ok ? await r.json() : null;
+        if (!cancelled) setMember(data);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
   }, [memberId]);
 
   if (!memberId) return null;
 
+  const isMale = member?.gender === "male";
+  const accentClass = isMale
+    ? "from-blue-600 to-blue-800"
+    : "from-pink-500 to-rose-600";
+
+  const formatDate = (d?: Date) =>
+    d ? new Date(d).toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" }) : "Chưa rõ";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden relative animate-in fade-in zoom-in duration-200">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded-full hover:bg-gray-100 transition-colors"
-        >
-          <X className="w-5 h-5 text-gray-500" />
-        </button>
+    // Backdrop
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      {/* Panel */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full sm:max-w-md bg-white sm:rounded-2xl rounded-t-2xl shadow-2xl overflow-hidden"
+        style={{ maxHeight: "90dvh" }}
+      >
+        {/* Header gradient */}
+        <div className={`bg-gradient-to-br ${accentClass} px-6 pt-6 pb-10 text-white`}>
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
 
-        {loading ? (
-          <div className="p-8 flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          </div>
-        ) : member ? (
-          <>
-            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white text-center">
-              <div className="w-24 h-24 bg-white/20 rounded-full mx-auto mb-4 flex items-center justify-center text-4xl shadow-inner">
-                {member.images?.[0] ? (
-                  <img src={member.images[0]} alt={member.name} className="w-full h-full rounded-full object-cover" />
-                ) : (
-                  "👤"
-                )}
+          {loading ? (
+            <div className="flex flex-col items-center gap-3 py-4">
+              <div className="w-16 h-16 rounded-full bg-white/20 animate-pulse" />
+              <div className="h-4 w-32 bg-white/20 rounded animate-pulse" />
+            </div>
+          ) : member ? (
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-4xl shadow-inner mb-3">
+                {member.images?.[0]
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={member.images[0]} alt={member.name} className="w-full h-full rounded-full object-cover" />
+                  : (member.gender === "female" ? "👩" : "👨")}
               </div>
-              <h2 className="text-2xl font-bold">{member.name}</h2>
+              <h2 className="text-xl font-bold">{member.name}</h2>
+              {member.culturalInfo?.hanNomName && (
+                <p className="text-sm text-white/80 mt-0.5">{member.culturalInfo.hanNomName}</p>
+              )}
               {member.culturalInfo?.title && (
-                <p className="text-blue-100 mt-1">{member.culturalInfo.title}</p>
+                <span className="mt-2 text-xs px-3 py-0.5 bg-white/20 rounded-full">
+                  {member.culturalInfo.title}
+                  {member.culturalInfo.generation && ` • Đời thứ ${member.culturalInfo.generation}`}
+                </span>
               )}
             </div>
+          ) : (
+            <p className="text-center opacity-70">Không tìm thấy thông tin</p>
+          )}
+        </div>
 
-            <div className="p-6 space-y-4">
-              <div className="flex items-center text-gray-700">
-                <Calendar className="w-5 h-5 mr-3 text-gray-400" />
+        {/* Body — overlaps the gradient slightly */}
+        {member && (
+          <div className="overflow-y-auto -mt-6 bg-white rounded-t-2xl px-6 pt-5 pb-6 space-y-4">
+            {/* Dates */}
+            <div className="flex items-start gap-3">
+              <Calendar className="w-4 h-4 mt-0.5 text-slate-400 shrink-0" />
+              <div>
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5">Ngày sinh – Ngày mất</p>
+                <p className="text-sm text-slate-700">
+                  {formatDate(member.birthDate)} – {member.deathDate ? formatDate(member.deathDate) : "Nay"}
+                </p>
+              </div>
+            </div>
+
+            {member.address && (
+              <div className="flex items-start gap-3">
+                <MapPin className="w-4 h-4 mt-0.5 text-slate-400 shrink-0" />
                 <div>
-                  <p className="text-sm font-medium">Sinh - Tử</p>
-                  <p className="text-sm text-gray-500">
-                    {member.birthDate ? new Date(member.birthDate).toLocaleDateString("vi-VN") : "Chưa rõ"} -{" "}
-                    {member.deathDate ? new Date(member.deathDate).toLocaleDateString("vi-VN") : "Nay"}
-                  </p>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5">Quê quán / Địa chỉ</p>
+                  <p className="text-sm text-slate-700">{member.address}</p>
                 </div>
               </div>
+            )}
 
-              {member.address && (
-                <div className="flex items-center text-gray-700">
-                  <MapPin className="w-5 h-5 mr-3 text-gray-400" />
-                  <div>
-                    <p className="text-sm font-medium">Địa chỉ / Quê quán</p>
-                    <p className="text-sm text-gray-500">{member.address}</p>
-                  </div>
+            {member.job && (
+              <div className="flex items-start gap-3">
+                <Briefcase className="w-4 h-4 mt-0.5 text-slate-400 shrink-0" />
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5">Nghề nghiệp</p>
+                  <p className="text-sm text-slate-700">{member.job}</p>
                 </div>
-              )}
+              </div>
+            )}
 
-              {member.job && (
-                <div className="flex items-center text-gray-700">
-                  <Briefcase className="w-5 h-5 mr-3 text-gray-400" />
-                  <div>
-                    <p className="text-sm font-medium">Nghề nghiệp</p>
-                    <p className="text-sm text-gray-500">{member.job}</p>
-                  </div>
+            {member.bio && (
+              <div className="flex items-start gap-3">
+                <BookOpen className="w-4 h-4 mt-0.5 text-slate-400 shrink-0" />
+                <div>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-0.5">Tiểu sử</p>
+                  <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{member.bio}</p>
                 </div>
-              )}
-
-              {member.bio && (
-                <div className="pt-4 border-t border-gray-100">
-                  <p className="text-sm font-medium mb-2">Tiểu sử</p>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{member.bio}</p>
-                </div>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="p-8 text-center text-gray-500 h-64 flex flex-col justify-center">
-            Không tìm thấy thông tin
+              </div>
+            )}
           </div>
         )}
       </div>
