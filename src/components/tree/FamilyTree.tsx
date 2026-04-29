@@ -189,10 +189,16 @@ export default function FamilyTree() {
         fitView
         minZoom={0.05}
         maxZoom={1.5}
-        panOnScroll={false}
+        nodesDraggable={true}
+        nodesConnectable={false}
+        nodesFocusable={true}
         panOnDrag={true}
+        panOnScroll={true}
+        selectionOnDrag={false}
+        preventScrolling={true}
         zoomOnPinch={true}
         zoomOnDoubleClick={false}
+        style={{ width: "100%", height: "100%", touchAction: "none" }}
       >
         <Background color="#d6cdc5" gap={20} size={1} />
         <Controls showInteractive={false} position="bottom-right" />
@@ -206,7 +212,7 @@ export default function FamilyTree() {
           showLegend ? "w-64 rounded-2xl p-4" : "w-10 h-10 rounded-full p-0 flex items-center justify-center sm:w-64 sm:rounded-2xl sm:p-4"
         )}>
           {/* Always show on desktop, toggle on mobile */}
-          <div className={cn("flex flex-col h-full", !showLegend && "sm:flex hidden")}>
+          <div className={cn("flex flex-col h-full", !showLegend && "hidden sm:flex")}>
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-lg font-bold text-amber-900 flex items-center gap-2">🌳 Gia Phả</h1>
               <button onClick={() => setShowLegend(false)} className="sm:hidden p-1 hover:bg-stone-100 rounded-full">

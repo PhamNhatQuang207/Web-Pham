@@ -16,13 +16,21 @@ function MemberCard({ m, onClick }: { m: IMember; onClick: () => void }) {
   const yr = (d?: Date | string) => d ? new Date(d).getFullYear() : "?";
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.stopPropagation();
+          onClick();
+        }
+      }}
       className={cn(
-        "w-36 flex flex-col items-center gap-1 py-2 px-2 rounded-xl shadow-sm transition-all border-2 bg-white",
+        "w-36 flex flex-col items-center gap-1 py-2 px-2 rounded-xl shadow-sm transition-all border-2 bg-white cursor-pointer select-none active:scale-95",
         isMale ? "border-blue-200 hover:border-blue-400" : "border-pink-200 hover:border-pink-400",
         isDeceased && "bg-stone-50 grayscale-[0.3]"
       )}
@@ -39,7 +47,7 @@ function MemberCard({ m, onClick }: { m: IMember; onClick: () => void }) {
       <span className="text-[8px] text-stone-400">
         {yr(m.birthDate)} – {m.deathDate ? yr(m.deathDate) : "nay"}
       </span>
-    </button>
+    </div>
   );
 }
 
