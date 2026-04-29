@@ -16,6 +16,8 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import dagre from "dagre";
+import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import { IMember } from "@/models/Member";
 import FamilyNode from "./FamilyNode";
@@ -64,6 +66,7 @@ export default function FamilyTree() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showLegend, setShowLegend] = useState(false); // Mobile: hidden by default
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -77,13 +80,11 @@ export default function FamilyTree() {
         const members: IMember[] = await response.json();
 
         // 1. Group by "Family Unit" (A father and his wives)
-        // In a patriarchal tree, each male who is a parent starts a "FamilyNode"
         const families: Record<string, { primary: IMember; spouses: IMember[] }> = {};
         const byId: Record<string, IMember> = {};
         members.forEach((m) => (byId[m._id] = m));
 
         members.forEach((m) => {
-          // If male and has wives or children, he's a primary of a family
           if (m.gender === "male") {
             families[m._id] = { primary: m, spouses: [] };
             if (m.spouseIds) {
@@ -111,25 +112,19 @@ export default function FamilyTree() {
             position: { x: 0, y: 0 },
           });
 
-          // Connect to father's family node
           if (fam.primary.fatherId) {
             initialEdges.push({
               id: `e-${fam.primary.fatherId}-${fam.primary._id}`,
               source: fam.primary.fatherId.toString(),
               target: fam.primary._id,
-              animated: true,
               style: { stroke: "#94a3b8", strokeWidth: 2 },
             });
           }
         });
 
-        // Add children who are NOT primaries (unmarried sons/daughters)
         members.forEach((m) => {
-          if (m.gender === "female" && !m.spouseIds?.length && !m.fatherId) return; // Skip root females if any
-          
-          // If this member is NOT a primary of a family node
+          if (m.gender === "female" && !m.spouseIds?.length && !m.fatherId) return;
           if (!families[m._id]) {
-            // But has a father, add them as a leaf node
             if (m.fatherId) {
               const fatherId = m.fatherId.toString();
               initialNodes.push({
@@ -140,7 +135,7 @@ export default function FamilyTree() {
                   spouses: [],
                   onMemberClick: (id: string) => setSelectedId(id),
                 },
-                type: "family", // Reuse FamilyNode for consistency
+                type: "family",
                 position: { x: 0, y: 0 },
               });
 
@@ -192,25 +187,63 @@ export default function FamilyTree() {
         onConnect={onConnect}
         nodeTypes={nodeTypes}
         fitView
-        minZoom={0.1}
+        minZoom={0.05}
         maxZoom={1.5}
       >
         <Background color="#d6cdc5" gap={20} size={1} />
-        <Controls />
-        <MiniMap nodeStrokeWidth={3} zoomable pannable />
+        <Controls showInteractive={false} position="bottom-right" />
+        <div className="hidden sm:block">
+          <MiniMap nodeStrokeWidth={3} zoomable pannable position="bottom-left" />
+        </div>
         
-        <Panel position="top-left" className="bg-white/80 backdrop-blur p-4 rounded-xl shadow-lg border border-stone-200">
-          <h1 className="text-xl font-bold text-amber-900 flex items-center gap-2">
-            🌳 Gia Phả Dòng Họ Phạm
-          </h1>
-          <p className="text-xs text-stone-500 mt-1">
-            • Kéo để di chuyển • Cuộn để phóng to • Click để xem chi tiết
-          </p>
-          <div className="mt-4 flex gap-3">
-            <Link href="/" className="text-xs px-3 py-1.5 bg-stone-100 hover:bg-stone-200 rounded-lg transition">
-              ← Trang chủ
-            </Link>
-          </div>
+        {/* Responsive Legend Panel */}
+        <Panel position="top-left" className={cn(
+          "bg-white/95 backdrop-blur shadow-xl border border-stone-200 transition-all duration-300 overflow-hidden",
+          showLegend ? "w-64 rounded-2xl p-4" : "w-10 h-10 rounded-full p-0 flex items-center justify-center"
+        )}>
+          {showLegend ? (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <h1 className="text-lg font-bold text-amber-900 flex items-center gap-2">🌳 Gia Phả</h1>
+                <button onClick={() => setShowLegend(false)} className="p-1 hover:bg-stone-100 rounded-full">
+                  <X className="w-4 h-4 text-stone-400" />
+                </button>
+              </div>
+              
+              <div className="space-y-3 border-t border-stone-100 pt-4">
+                <div className="flex items-center gap-3 text-xs text-stone-600">
+                  <div className="w-8 border-t-2 border-dashed border-pink-300" />
+                  <span>Quan hệ Vợ - Chồng</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-stone-600">
+                  <div className="w-8 border-t-2 border-slate-300" />
+                  <span>Quan hệ Cha/Mẹ - Con</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-stone-600">
+                  <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center text-[10px]">👨</div>
+                  <span>Thành viên Nam</span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-stone-600">
+                  <div className="w-5 h-5 rounded-full bg-pink-50 flex items-center justify-center text-[10px]">👩</div>
+                  <span>Thành viên Nữ</span>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-stone-100 flex flex-col gap-2">
+                <Link href="/" className="inline-flex items-center justify-center px-4 py-2 bg-amber-800 text-white text-xs font-bold rounded-lg hover:bg-amber-900 transition">
+                  ← Về trang chủ
+                </Link>
+              </div>
+            </>
+          ) : (
+            <button 
+              onClick={() => setShowLegend(true)}
+              className="w-full h-full flex items-center justify-center text-lg hover:bg-stone-50 transition"
+              title="Xem chú thích"
+            >
+              ℹ️
+            </button>
+          )}
         </Panel>
       </ReactFlow>
 
