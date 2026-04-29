@@ -209,7 +209,7 @@ export default function FamilyTree() {
         {/* Responsive Legend Panel */}
         <Panel position="top-left" className={cn(
           "bg-white/95 backdrop-blur shadow-xl border border-stone-200 transition-all duration-300 overflow-hidden",
-          showLegend ? "w-64 rounded-2xl p-4" : "w-10 h-10 rounded-full p-0 flex items-center justify-center sm:w-64 sm:rounded-2xl sm:p-4"
+          showLegend ? "w-64 rounded-2xl p-4" : "w-10 h-10 rounded-full p-0 flex items-center justify-center sm:w-64 sm:h-auto sm:rounded-2xl sm:p-4"
         )}>
           {/* Always show on desktop, toggle on mobile */}
           <div className={cn("flex flex-col h-full", !showLegend && "hidden sm:flex")}>
