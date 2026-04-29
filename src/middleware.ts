@@ -8,7 +8,7 @@ const EDITOR_ROUTES = ["/edit", "/members/create"];
 
 export default auth(function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  // @ts-ignore - auth augments the request
+  // @ts-expect-error - auth augments the request
   const session = req.auth;
 
   // Allow public routes

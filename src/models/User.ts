@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, models } from "mongoose";
+import { Schema, model, models } from "mongoose";
 import * as bcrypt from "bcryptjs";
 
 export type UserRole = "ADMIN" | "EDITOR" | "VIEWER";
