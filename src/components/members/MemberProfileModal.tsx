@@ -139,6 +139,39 @@ export default function MemberProfileModal({ memberId, onClose }: MemberProfileM
                 </div>
               </div>
             )}
+
+            {/* Relations */}
+            <div className="pt-2 border-t border-slate-100 space-y-3">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Quan hệ gia đình</p>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase mb-1">Cha</p>
+                  <p className="text-sm font-medium text-slate-800">
+                    {(member.fatherId as any)?.name || "Chưa rõ"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase mb-1">Mẹ</p>
+                  <p className="text-sm font-medium text-slate-800">
+                    {(member.motherId as any)?.name || "Chưa rõ"}
+                  </p>
+                </div>
+              </div>
+
+              {member.spouseIds && member.spouseIds.length > 0 && (
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase mb-1">Vợ / Chồng</p>
+                  <div className="flex flex-wrap gap-2">
+                    {member.spouseIds.map((sp: any) => (
+                      <span key={sp._id} className="text-sm font-medium text-slate-800 bg-slate-50 px-2 py-1 rounded">
+                        {sp.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
