@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gia Phả Dòng Họ - Web Application
 
-## Getting Started
+Dự án ứng dụng web quản lý và trực quan hóa cây gia phả dòng họ. 
 
-First, run the development server:
+## 🚀 Công nghệ sử dụng
+
+- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
+- **UI & Styling**: React, [Tailwind CSS](https://tailwindcss.com/)
+- **Biểu đồ cây gia phả**: [@xyflow/react](https://reactflow.dev/) (React Flow) và [Dagre](https://github.com/dagrejs/dagre) (Tự động layout graph)
+- **Cơ sở dữ liệu**: MongoDB (thông qua [Mongoose](https://mongoosejs.com/))
+- **Xác thực & Phân quyền**: [NextAuth.js v5](https://next-auth.js.org/) (JWT & Credentials)
+- **Icons**: [Lucide React](https://lucide.dev/)
+
+## ✨ Tính năng chính
+
+- **Trực quan hóa gia phả**: Cây gia phả được vẽ tự động, dễ dàng zoom, pan, hiển thị rõ ràng quan hệ cha-con, vợ-chồng.
+- **Hồ sơ thành viên**: Hiển thị chi tiết ngày sinh, ngày mất, thông tin Hán-Nôm, quê quán, tiểu sử và hình ảnh.
+- **Phân quyền người dùng (Role-based access control)**:
+  - `ADMIN`: Quản lý hệ thống, phê duyệt các yêu cầu thay đổi thông tin.
+  - `EDITOR`: Thêm, sửa thông tin các thành viên.
+  - `VIEWER`: Xem gia phả, có thể gửi yêu cầu chỉnh sửa/bổ sung (chờ duyệt).
+
+## 🛠 Hướng dẫn Cài đặt & Chạy dự án
+
+### Yêu cầu hệ thống
+- Node.js (v18.17 trở lên)
+- MongoDB (chạy local trên port `27017` hoặc dùng MongoDB Atlas)
+
+### Bước 1: Clone dự án và Cài đặt thư viện
+
+```bash
+git clone git@github.com:PhamNhatQuang207/Web-Pham.git
+cd "Web gia phả"
+npm install
+```
+
+### Bước 2: Thiết lập biến môi trường
+
+Copy file template `.env.example` thành `.env.local` và điền thông tin phù hợp:
+
+```bash
+cp .env.example .env.local
+```
+
+Trong file `.env.local`:
+```env
+# URL kết nối MongoDB (Mặc định là localhost)
+MONGODB_URI=mongodb://localhost:27017/gia-pha
+
+# NextAuth config
+NEXTAUTH_URL=http://localhost:3000
+# Bạn có thể tạo SECRET ngẫu nhiên bằng lệnh: `openssl rand -base64 32`
+NEXTAUTH_SECRET=your-secret-key-here-change-in-production
+
+# Thông tin chung của App
+NEXT_PUBLIC_APP_NAME=Gia Phả Dòng Họ
+```
+
+### Bước 3: Chạy ứng dụng (Development)
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mở trình duyệt và truy cập [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🗄 Cấu trúc Database (MongoDB)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **`User`**: Tài khoản người dùng (bao gồm roles `ADMIN`, `EDITOR`, `VIEWER`).
+- **`Member`**: Dữ liệu thành viên gia phả (liên kết qua `parentId` và `spouseId`).
+- **`PendingRequest`**: Các đề xuất chỉnh sửa thông tin từ người dùng Viewer chờ Admin duyệt.
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+_Phát triển bởi PhamNhatQuang207_
