@@ -1,5 +1,5 @@
 import mongoose, { Schema, model, models } from "mongoose";
-import bcrypt from "bcryptjs";
+import * as bcrypt from "bcryptjs";
 
 export type UserRole = "ADMIN" | "EDITOR" | "VIEWER";
 
@@ -34,10 +34,9 @@ const UserSchema = new Schema<IUser>(
 );
 
 // Hash password before saving
-UserSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+UserSchema.pre("save", async function () {
+  if (!this.isModified("password")) return;
   this.password = await bcrypt.hash(this.password, 12);
-  next();
 });
 
 const User = models.User || model<IUser>("User", UserSchema);
