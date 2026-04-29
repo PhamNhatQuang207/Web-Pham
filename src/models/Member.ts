@@ -55,5 +55,10 @@ const MemberSchema = new Schema<IMember>(
 // Index for search
 MemberSchema.index({ name: "text", address: "text", "culturalInfo.hanNomName": "text" });
 
+// Xóa cache model cũ trong môi trường dev để tránh lỗi khi sửa schema
+if (process.env.NODE_ENV === "development" && models.Member) {
+  delete models.Member;
+}
+
 const Member = models.Member || model<IMember>("Member", MemberSchema);
 export default Member;
