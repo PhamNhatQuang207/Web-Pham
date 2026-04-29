@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
+
+const { auth } = NextAuth(authConfig);
 
 const PUBLIC_ROUTES = ["/", "/login", "/tree"];
 const ADMIN_ROUTES = ["/admin"];
 const EDITOR_ROUTES = ["/edit", "/members/create"];
 
-export default auth(function middleware(req: NextRequest) {
+export default auth(function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   // @ts-expect-error - auth augments the request
   const session = req.auth;
