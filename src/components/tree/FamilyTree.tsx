@@ -14,22 +14,34 @@ const V_GAP = 120;     // vertical gap between generations
 const PAD = 80;        // canvas padding
 
 // ── Tree structure ───────────────────────────────────────────────────────────
+// A unit is a primary member and their spouses.
+// To handle multiple spouses, we need to track children per spouse.
+interface ChildGroup {
+  spouseId: string | null; // null if child has no known other parent in this unit
+  children: Unit[];
+}
+
 interface Unit {
   primary: IMember;
-  spouse?: IMember;
-  children: Unit[];
+  spouses: IMember[];
+  childGroups: ChildGroup[];
 }
 
 function buildUnits(members: IMember[]): Unit[] {
   const byId: Record<string, IMember> = {};
   members.forEach((m) => { byId[m._id] = m; });
 
-  const childrenOf: Record<string, string[]> = {};
+  const childrenOfPrimary: Record<string, IMember[]> = {};
   members.forEach((m) => {
-    if (m.parentId) {
-      const pid = m.parentId.toString();
-      if (!childrenOf[pid]) childrenOf[pid] = [];
-      childrenOf[pid].push(m._id);
+    if (m.fatherId) {
+      const fid = m.fatherId.toString();
+      if (!childrenOfPrimary[fid]) childrenOfPrimary[fid] = [];
+      childrenOfPrimary[fid].push(m);
+    }
+    if (m.motherId) {
+      const mid = m.motherId.toString();
+      if (!childrenOfPrimary[mid]) childrenOfPrimary[mid] = [];
+      childrenOfPrimary[mid].push(m);
     }
   });
 
@@ -37,69 +49,171 @@ function buildUnits(members: IMember[]): Unit[] {
 
   function buildUnit(m: IMember): Unit {
     visited.add(m._id);
-    const spId = m.spouseId?.toString();
-    let spouse: IMember | undefined;
-    if (spId && byId[spId] && !visited.has(spId)) {
-      spouse = byId[spId];
-      visited.add(spId);
+    
+    // Find spouses
+    const spouses: IMember[] = [];
+    if (m.spouseIds && m.spouseIds.length > 0) {
+      m.spouseIds.forEach((spIdRaw) => {
+        const spId = spIdRaw.toString();
+        if (byId[spId] && !visited.has(spId)) {
+          spouses.push(byId[spId]);
+          visited.add(spId);
+        }
+      });
     }
-    const childIds = new Set([
-      ...(childrenOf[m._id] || []),
-      ...(spouse ? childrenOf[spouse._id] || [] : []),
-    ]);
-    const children: Unit[] = [];
-    childIds.forEach((cid) => {
-      if (!visited.has(cid) && byId[cid]) children.push(buildUnit(byId[cid]));
+
+    // Group children by spouse
+    const childGroups: ChildGroup[] = [];
+    
+    // Initialize groups for each spouse + one for "unknown/no spouse"
+    spouses.forEach(sp => childGroups.push({ spouseId: sp._id, children: [] }));
+    const noSpouseGroup: ChildGroup = { spouseId: null, children: [] };
+    
+    const childrenSet = new Set<IMember>();
+    (childrenOfPrimary[m._id] || []).forEach(child => childrenSet.add(child));
+    spouses.forEach(sp => {
+      (childrenOfPrimary[sp._id] || []).forEach(child => childrenSet.add(child));
     });
-    return { primary: m, spouse, children };
+
+    childrenSet.forEach(child => {
+      if (visited.has(child._id)) return;
+      
+      const childFid = child.fatherId?.toString();
+      const childMid = child.motherId?.toString();
+      
+      // Determine which spouse this child belongs to
+      let assignedSpouseId: string | null = null;
+      for (const sp of spouses) {
+        if (childFid === sp._id || childMid === sp._id) {
+          assignedSpouseId = sp._id;
+          break;
+        }
+      }
+
+      const childUnit = buildUnit(child);
+      
+      if (assignedSpouseId) {
+        const group = childGroups.find(g => g.spouseId === assignedSpouseId);
+        if (group) group.children.push(childUnit);
+      } else {
+        noSpouseGroup.children.push(childUnit);
+      }
+    });
+
+    if (noSpouseGroup.children.length > 0) {
+      childGroups.unshift(noSpouseGroup); // Put "no spouse" children first (under primary)
+    }
+
+    return { primary: m, spouses, childGroups };
   }
 
   const roots: Unit[] = [];
   members.forEach((m) => {
-    if (!m.parentId && !visited.has(m._id)) roots.push(buildUnit(m));
+    if (!m.fatherId && !m.motherId && !visited.has(m._id)) {
+      roots.push(buildUnit(m));
+    }
   });
   return roots;
 }
 
 // ── Layout ───────────────────────────────────────────────────────────────────
-interface LayoutUnit {
-  cx: number; // center-x of the couple
-  y: number;
-  unit: Unit;
+interface LayoutChildGroup {
+  spouseId: string | null;
+  cx: number;
   children: LayoutUnit[];
 }
 
-function unitW(u: Unit): number {
-  const selfW = u.spouse ? NW * 2 + SPOUSE_GAP : NW;
-  if (u.children.length === 0) return selfW;
-  const childrenW =
-    u.children.reduce((s, c) => s + unitW(c), 0) + H_GAP * (u.children.length - 1);
-  return Math.max(selfW, childrenW);
+interface LayoutUnit {
+  x: number; // Left-most x position of the primary member
+  y: number;
+  unit: Unit;
+  spousesX: number[]; // x positions for each spouse
+  childGroups: LayoutChildGroup[];
 }
 
-function layout(u: Unit, cx: number, y: number): LayoutUnit {
-  const childrenW =
-    u.children.length > 0
-      ? u.children.reduce((s, c) => s + unitW(c), 0) + H_GAP * (u.children.length - 1)
-      : 0;
-  let cur = cx - childrenW / 2;
-  const children: LayoutUnit[] = u.children.map((c) => {
-    const cw = unitW(c);
-    const node = layout(c, cur + cw / 2, y + NH + V_GAP);
-    cur += cw + H_GAP;
-    return node;
+function unitW(u: Unit): number {
+  // Width of parents: primary + spouses
+  const parentsW = NW + (u.spouses.length * (NW + SPOUSE_GAP));
+  
+  // Width of children
+  let childrenW = 0;
+  u.childGroups.forEach(cg => {
+    if (cg.children.length > 0) {
+      const cgW = cg.children.reduce((s, c) => s + unitW(c), 0) + H_GAP * (cg.children.length - 1);
+      childrenW += cgW + H_GAP; // Add H_GAP between groups
+    }
   });
-  return { cx, y, unit: u, children };
+  if (childrenW > 0) childrenW -= H_GAP;
+
+  return Math.max(parentsW, childrenW);
+}
+
+function layout(u: Unit, startX: number, y: number): LayoutUnit {
+  const w = unitW(u);
+  // Center parents over the allocated width
+  const parentsW = NW + (u.spouses.length * (NW + SPOUSE_GAP));
+  const parentsStartX = startX + (w - parentsW) / 2;
+  
+  const spousesX: number[] = [];
+  let curSpouseX = parentsStartX + NW + SPOUSE_GAP;
+  u.spouses.forEach(() => {
+    spousesX.push(curSpouseX);
+    curSpouseX += NW + SPOUSE_GAP;
+  });
+
+  let curChildX = startX;
+  const layoutChildGroups: LayoutChildGroup[] = [];
+
+  u.childGroups.forEach(cg => {
+    if (cg.children.length === 0) return;
+    
+    const cgChildrenW = cg.children.reduce((s, c) => s + unitW(c), 0) + H_GAP * (cg.children.length - 1);
+    
+    // Determine the anchor point for this child group (center between primary and the specific spouse, or just primary)
+    let parentAnchorX = parentsStartX + NW / 2;
+    if (cg.spouseId) {
+      const spIdx = u.spouses.findIndex(s => s._id === cg.spouseId);
+      if (spIdx !== -1) {
+        const spX = spousesX[spIdx];
+        parentAnchorX = (parentsStartX + NW / 2 + spX + NW / 2) / 2;
+      }
+    }
+
+    // Try to center children under their parent anchor, but respect curChildX to avoid overlapping
+    let groupStartX = Math.max(curChildX, parentAnchorX - cgChildrenW / 2);
+    
+    const children: LayoutUnit[] = [];
+    let childX = groupStartX;
+    cg.children.forEach(c => {
+      const cw = unitW(c);
+      children.push(layout(c, childX, y + NH + V_GAP));
+      childX += cw + H_GAP;
+    });
+
+    layoutChildGroups.push({
+      spouseId: cg.spouseId,
+      cx: groupStartX + cgChildrenW / 2,
+      children
+    });
+
+    curChildX = childX;
+  });
+
+  return { x: parentsStartX, y, unit: u, spousesX, childGroups: layoutChildGroups };
 }
 
 // ── Bounds ───────────────────────────────────────────────────────────────────
 function bounds(nodes: LayoutUnit[], acc = { minX: Infinity, maxX: -Infinity, maxY: 0 }) {
   nodes.forEach((n) => {
-    const hw = n.unit.spouse ? NW + SPOUSE_GAP / 2 : NW / 2;
-    acc.minX = Math.min(acc.minX, n.cx - hw);
-    acc.maxX = Math.max(acc.maxX, n.cx + hw);
+    acc.minX = Math.min(acc.minX, n.x);
+    if (n.spousesX.length > 0) {
+      acc.maxX = Math.max(acc.maxX, n.spousesX[n.spousesX.length - 1] + NW);
+    } else {
+      acc.maxX = Math.max(acc.maxX, n.x + NW);
+    }
     acc.maxY = Math.max(acc.maxY, n.y + NH);
-    bounds(n.children, acc);
+    
+    n.childGroups.forEach(cg => bounds(cg.children, acc));
   });
   return acc;
 }
@@ -137,70 +251,88 @@ function Card({
 }
 
 function Connections({ node, ox }: { node: LayoutUnit; ox: number }) {
-  const { cx, y, unit, children } = node;
+  const { x, y, unit, spousesX, childGroups } = node;
   const lines: React.ReactNode[] = [];
 
-  // Spouse connector
-  if (unit.spouse) {
+  // Spouse connectors (chain them)
+  let prevSpouseX = x;
+  spousesX.forEach((spX, idx) => {
     lines.push(
-      <line key={`sp-${unit.primary._id}`}
-        x1={cx - SPOUSE_GAP / 2 + ox} y1={y + NH / 2}
-        x2={cx + SPOUSE_GAP / 2 + ox} y2={y + NH / 2}
+      <line key={`sp-${unit.primary._id}-${idx}`}
+        x1={prevSpouseX + NW + ox} y1={y + NH / 2}
+        x2={spX + ox} y2={y + NH / 2}
         stroke="#f9a8d4" strokeWidth={2.5} strokeDasharray="6 3" />
     );
-  }
+    prevSpouseX = spX;
+  });
 
   // Parent → children
-  if (children.length > 0) {
+  childGroups.forEach(cg => {
+    if (cg.children.length === 0) return;
+
+    let parentAnchorX = x + NW / 2;
+    if (cg.spouseId) {
+      const spIdx = unit.spouses.findIndex(s => s._id === cg.spouseId);
+      if (spIdx !== -1) {
+        parentAnchorX = (x + NW / 2 + spousesX[spIdx] + NW / 2) / 2;
+        
+        // Draw a tiny vertical tick from the spouse line down to start the child line
+        lines.push(
+          <line key={`vsp-${unit.primary._id}-${cg.spouseId}`}
+            x1={parentAnchorX + ox} y1={y + NH / 2}
+            x2={parentAnchorX + ox} y2={y + NH}
+            stroke="#94a3b8" strokeWidth={1.5} />
+        );
+      }
+    }
+
     const midY = y + NH + 24;
     const barY = y + NH + V_GAP - 24;
 
+    // Line from parent anchor down
     lines.push(
-      <line key={`vd-${unit.primary._id}`}
-        x1={cx + ox} y1={y + NH}
-        x2={cx + ox} y2={midY}
+      <line key={`vd-${unit.primary._id}-${cg.spouseId}`}
+        x1={parentAnchorX + ox} y1={y + NH}
+        x2={parentAnchorX + ox} y2={midY}
         stroke="#94a3b8" strokeWidth={1.5} />
     );
 
-    if (children.length === 1) {
+    if (cg.children.length === 1) {
+      const childCenter = cg.children[0].x + NW / 2;
       lines.push(
-        <line key={`sc-${unit.primary._id}`}
-          x1={cx + ox} y1={midY}
-          x2={children[0].cx + ox} y2={children[0].y}
+        <line key={`sc-${unit.primary._id}-${cg.children[0].unit.primary._id}`}
+          x1={parentAnchorX + ox} y1={midY}
+          x2={childCenter + ox} y2={cg.children[0].y}
           stroke="#94a3b8" strokeWidth={1.5} />
       );
     } else {
-      const l = children[0].cx + ox;
-      const r = children[children.length - 1].cx + ox;
-      lines.push(<line key={`hb-${unit.primary._id}`} x1={l} y1={barY} x2={r} y2={barY} stroke="#94a3b8" strokeWidth={1.5} />);
-      lines.push(<line key={`vm-${unit.primary._id}`} x1={cx + ox} y1={midY} x2={cx + ox} y2={barY} stroke="#94a3b8" strokeWidth={1.5} />);
-      children.forEach((ch) =>
-        lines.push(<line key={`vc-${ch.unit.primary._id}`} x1={ch.cx + ox} y1={barY} x2={ch.cx + ox} y2={ch.y} stroke="#94a3b8" strokeWidth={1.5} />)
+      const l = cg.children[0].x + NW / 2 + ox;
+      const r = cg.children[cg.children.length - 1].x + NW / 2 + ox;
+      lines.push(<line key={`hb-${unit.primary._id}-${cg.spouseId}`} x1={l} y1={barY} x2={r} y2={barY} stroke="#94a3b8" strokeWidth={1.5} />);
+      lines.push(<line key={`vm-${unit.primary._id}-${cg.spouseId}`} x1={parentAnchorX + ox} y1={midY} x2={parentAnchorX + ox} y2={barY} stroke="#94a3b8" strokeWidth={1.5} />);
+      cg.children.forEach((ch) =>
+        lines.push(<line key={`vc-${ch.unit.primary._id}`} x1={ch.x + NW / 2 + ox} y1={barY} x2={ch.x + NW / 2 + ox} y2={ch.y} stroke="#94a3b8" strokeWidth={1.5} />)
       );
     }
-  }
+  });
 
   return (
     <>
       {lines}
-      {children.map((ch) => <Connections key={ch.unit.primary._id} node={ch} ox={ox} />)}
+      {childGroups.map(cg => cg.children.map(ch => <Connections key={ch.unit.primary._id} node={ch} ox={ox} />))}
     </>
   );
 }
 
 function Nodes({ node, ox, onSelect }: { node: LayoutUnit; ox: number; onSelect: (id: string) => void }) {
-  const { cx, y, unit, children } = node;
+  const { x, y, unit, spousesX, childGroups } = node;
   return (
     <>
-      {unit.spouse ? (
-        <>
-          <Card m={unit.primary}  x={cx - NW - SPOUSE_GAP / 2 + ox} y={y} onClick={() => onSelect(unit.primary._id)} />
-          <Card m={unit.spouse}   x={cx + SPOUSE_GAP / 2 + ox}       y={y} onClick={() => onSelect(unit.spouse!._id)} />
-        </>
-      ) : (
-        <Card m={unit.primary} x={cx - NW / 2 + ox} y={y} onClick={() => onSelect(unit.primary._id)} />
-      )}
-      {children.map((ch) => <Nodes key={ch.unit.primary._id} node={ch} ox={ox} onSelect={onSelect} />)}
+      <Card m={unit.primary} x={x + ox} y={y} onClick={() => onSelect(unit.primary._id)} />
+      {unit.spouses.map((sp, idx) => (
+        <Card key={sp._id} m={sp} x={spousesX[idx] + ox} y={y} onClick={() => onSelect(sp._id)} />
+      ))}
+      {childGroups.map(cg => cg.children.map((ch) => <Nodes key={ch.unit.primary._id} node={ch} ox={ox} onSelect={onSelect} />))}
     </>
   );
 }
@@ -241,7 +373,7 @@ export default function FamilyTree() {
     let cur = -totalW / 2;
     return roots.map((u) => {
       const w = unitW(u);
-      const node = layout(u, cur + w / 2, PAD);
+      const node = layout(u, cur, PAD);
       cur += w + H_GAP;
       return node;
     });

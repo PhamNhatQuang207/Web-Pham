@@ -12,8 +12,9 @@ export async function GET(
     const { id } = resolvedParams;
 
     const member = await Member.findById(id)
-      .populate("parentId", "name birthDate gender")
-      .populate("spouseId", "name birthDate gender")
+      .populate("fatherId", "name birthDate gender")
+      .populate("motherId", "name birthDate gender")
+      .populate("spouseIds", "name birthDate gender")
       .lean();
 
     if (!member) {

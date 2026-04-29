@@ -10,8 +10,9 @@ export interface IMember {
   address?: string;
   job?: string;
   // Relations
-  parentId?: Types.ObjectId;
-  spouseId?: Types.ObjectId;
+  fatherId?: Types.ObjectId;
+  motherId?: Types.ObjectId;
+  spouseIds?: Types.ObjectId[];
   // Documentation
   bio?: string;
   images?: string[];
@@ -37,8 +38,9 @@ const MemberSchema = new Schema<IMember>(
     },
     address: { type: String, trim: true },
     job: { type: String, trim: true },
-    parentId: { type: Schema.Types.ObjectId, ref: "Member" },
-    spouseId: { type: Schema.Types.ObjectId, ref: "Member" },
+    fatherId: { type: Schema.Types.ObjectId, ref: "Member" },
+    motherId: { type: Schema.Types.ObjectId, ref: "Member" },
+    spouseIds: [{ type: Schema.Types.ObjectId, ref: "Member" }],
     bio: { type: String },
     images: [{ type: String }],
     culturalInfo: {
