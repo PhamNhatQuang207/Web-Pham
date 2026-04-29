@@ -197,8 +197,9 @@ export default function FamilyTree() {
         selectionOnDrag={false}
         preventScrolling={true}
         zoomOnPinch={true}
+        zoomOnScroll={true}
         zoomOnDoubleClick={false}
-        style={{ width: "100%", height: "100%", touchAction: "none" }}
+        style={{ width: "100%", height: "100%" }}
       >
         <Background color="#d6cdc5" gap={20} size={1} />
         <Controls showInteractive={false} position="bottom-right" />
