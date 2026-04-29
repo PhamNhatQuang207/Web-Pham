@@ -15,6 +15,49 @@ import {
   Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+
+// Custom styles for better mobile accessibility
+const mobileStyles = `
+  .react-flow__controls {
+    display: flex;
+    flex-direction: row !important;
+    gap: 8px;
+    margin-bottom: 20px;
+    margin-right: 20px;
+  }
+  .react-flow__controls-button {
+    width: 44px !important;
+    height: 44px !important;
+    background-color: white !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
+  }
+  .react-flow__controls-button svg {
+    width: 20px !important;
+    height: 20px !important;
+    fill: #78350f !important;
+  }
+  @media (min-width: 640px) {
+    .react-flow__controls {
+      flex-direction: column !important;
+      margin-bottom: 10px;
+      margin-right: 10px;
+    }
+    .react-flow__controls-button {
+      width: 28px !important;
+      height: 28px !important;
+      border-radius: 4px !important;
+    }
+    .react-flow__controls-button svg {
+      width: 14px !important;
+      height: 14px !important;
+    }
+  }
+`;
 import dagre from "dagre";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -179,6 +222,7 @@ export default function FamilyTree() {
 
   return (
     <div className="w-full h-screen bg-[#f5f0eb]">
+      <style>{mobileStyles}</style>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -202,7 +246,7 @@ export default function FamilyTree() {
         style={{ width: "100%", height: "100%" }}
       >
         <Background color="#d6cdc5" gap={20} size={1} />
-        <Controls showInteractive={false} position="bottom-right" />
+        <Controls position="bottom-right" className="bg-white shadow-lg border-stone-200" />
         <div className="hidden sm:block">
           <MiniMap nodeStrokeWidth={3} zoomable pannable position="bottom-left" />
         </div>
