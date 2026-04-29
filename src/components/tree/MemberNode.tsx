@@ -1,6 +1,5 @@
 "use client";
 
-import { Handle, Position } from "@xyflow/react";
 import { cn } from "@/lib/utils";
 
 interface MemberNodeData {
@@ -28,28 +27,6 @@ export default function MemberNode({ data, selected }: MemberNodeProps) {
 
   return (
     <>
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!w-2 !h-2 !bg-slate-400 !border-0 opacity-0"
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!w-2 !h-2 !bg-slate-400 !border-0 opacity-0"
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="left"
-        className="!w-2 !h-2 !bg-pink-300 !border-0 opacity-0"
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right"
-        className="!w-2 !h-2 !bg-pink-300 !border-0 opacity-0"
-      />
 
       <button
         onClick={data.onClick}

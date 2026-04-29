@@ -5,12 +5,14 @@ import Link from "next/link";
 import MemberProfileModal from "../members/MemberProfileModal";
 import { IMember } from "@/models/Member";
 
+import MemberNode from "./MemberNode";
+
 // ── Constants ────────────────────────────────────────────────────────────────
-const NW = 140;        // node width
-const NH = 76;         // node height
-const SPOUSE_GAP = 28; // gap between spouses
-const H_GAP = 60;      // gap between sibling groups
-const V_GAP = 120;     // vertical gap between generations
+const NW = 160;        // node width (w-40 = 160px)
+const NH = 90;         // node height (h-auto but roughly 90px)
+const SPOUSE_GAP = 32; // gap between spouses
+const H_GAP = 40;      // gap between sibling groups
+const V_GAP = 80;      // vertical gap between generations
 const PAD = 80;        // canvas padding
 
 // ── Tree structure ───────────────────────────────────────────────────────────
@@ -219,37 +221,6 @@ function bounds(nodes: LayoutUnit[], acc = { minX: Infinity, maxX: -Infinity, ma
 }
 
 // ── SVG pieces ───────────────────────────────────────────────────────────────
-function yr(d?: Date | string) {
-  return d ? new Date(d).getFullYear() : "?";
-}
-
-function Card({
-  m, x, y, onClick,
-}: { m: IMember; x: number; y: number; onClick: () => void }) {
-  const female = m.gender === "female";
-  const dead = !!m.deathDate;
-  const accent = female ? "#f472b6" : "#60a5fa";
-  const bg = dead ? "#f5f0eb" : "#ffffff";
-  const name = m.name.length > 13 ? m.name.slice(0, 12) + "…" : m.name;
-  const years = `${yr(m.birthDate)}${dead ? ` – ${yr(m.deathDate)}` : ""}`;
-
-  return (
-    <g onClick={onClick} style={{ cursor: "pointer" }}>
-      <rect x={x+2} y={y+2} width={NW} height={NH} rx={10} fill="rgba(0,0,0,0.07)" />
-      <rect x={x} y={y} width={NW} height={NH} rx={10} fill={bg} stroke={accent} strokeWidth={2} />
-      <rect x={x} y={y} width={NW} height={8} rx={4} fill={accent} />
-      <rect x={x} y={y+4} width={NW} height={4} fill={accent} />
-      <circle cx={x+20} cy={y+36} r={13} fill={female ? "#fce7f3" : "#dbeafe"} stroke={accent} strokeWidth={1.5} />
-      <text x={x+20} y={y+41} textAnchor="middle" fontSize={14}>{female ? "👩" : "👨"}</text>
-      <text x={x+38} y={y+29} fontSize={11} fontWeight={700} fill="#1c1917">{name}</text>
-      <text x={x+38} y={y+43} fontSize={9.5} fill="#78716c">{years}</text>
-      {m.culturalInfo?.generation && (
-        <text x={x+38} y={y+57} fontSize={9} fill="#a8a29e">Đời {m.culturalInfo.generation}</text>
-      )}
-    </g>
-  );
-}
-
 function Connections({ node, ox }: { node: LayoutUnit; ox: number }) {
   const { x, y, unit, spousesX, childGroups } = node;
   const lines: React.ReactNode[] = [];
@@ -300,18 +271,16 @@ function Connections({ node, ox }: { node: LayoutUnit; ox: number }) {
     if (cg.children.length === 1) {
       const childCenter = cg.children[0].x + NW / 2;
       lines.push(
-        <line key={`sc-${unit.primary._id}-${cg.children[0].unit.primary._id}`}
-          x1={parentAnchorX + ox} y1={midY}
-          x2={childCenter + ox} y2={cg.children[0].y}
-          stroke="#94a3b8" strokeWidth={1.5} />
+        <path key={`sc-${unit.primary._id}-${cg.children[0].unit.primary._id}`}
+          d={`M ${parentAnchorX + ox} ${midY} L ${childCenter + ox} ${midY} L ${childCenter + ox} ${cg.children[0].y}`}
+          stroke="#94a3b8" strokeWidth={1.5} fill="none" />
       );
     } else {
       const l = cg.children[0].x + NW / 2 + ox;
       const r = cg.children[cg.children.length - 1].x + NW / 2 + ox;
-      lines.push(<line key={`hb-${unit.primary._id}-${cg.spouseId}`} x1={l} y1={barY} x2={r} y2={barY} stroke="#94a3b8" strokeWidth={1.5} />);
-      lines.push(<line key={`vm-${unit.primary._id}-${cg.spouseId}`} x1={parentAnchorX + ox} y1={midY} x2={parentAnchorX + ox} y2={barY} stroke="#94a3b8" strokeWidth={1.5} />);
+      lines.push(<line key={`hb-${unit.primary._id}-${cg.spouseId}`} x1={l} y1={midY} x2={r} y2={midY} stroke="#94a3b8" strokeWidth={1.5} />);
       cg.children.forEach((ch) =>
-        lines.push(<line key={`vc-${ch.unit.primary._id}`} x1={ch.x + NW / 2 + ox} y1={barY} x2={ch.x + NW / 2 + ox} y2={ch.y} stroke="#94a3b8" strokeWidth={1.5} />)
+        lines.push(<line key={`vc-${ch.unit.primary._id}`} x1={ch.x + NW / 2 + ox} y1={midY} x2={ch.x + NW / 2 + ox} y2={ch.y} stroke="#94a3b8" strokeWidth={1.5} />)
       );
     }
   });
@@ -328,9 +297,13 @@ function Nodes({ node, ox, onSelect }: { node: LayoutUnit; ox: number; onSelect:
   const { x, y, unit, spousesX, childGroups } = node;
   return (
     <>
-      <Card m={unit.primary} x={x + ox} y={y} onClick={() => onSelect(unit.primary._id)} />
+      <foreignObject x={x + ox} y={y} width={NW} height={NH + 20} className="overflow-visible">
+        <MemberNode data={{ label: unit.primary.name, gender: unit.primary.gender, birthDate: unit.primary.birthDate, deathDate: unit.primary.deathDate, onClick: () => onSelect(unit.primary._id) }} />
+      </foreignObject>
       {unit.spouses.map((sp, idx) => (
-        <Card key={sp._id} m={sp} x={spousesX[idx] + ox} y={y} onClick={() => onSelect(sp._id)} />
+        <foreignObject key={sp._id} x={spousesX[idx] + ox} y={y} width={NW} height={NH + 20} className="overflow-visible">
+          <MemberNode data={{ label: sp.name, gender: sp.gender, birthDate: sp.birthDate, deathDate: sp.deathDate, onClick: () => onSelect(sp._id) }} />
+        </foreignObject>
       ))}
       {childGroups.map(cg => cg.children.map((ch) => <Nodes key={ch.unit.primary._id} node={ch} ox={ox} onSelect={onSelect} />))}
     </>
