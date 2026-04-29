@@ -189,6 +189,10 @@ export default function FamilyTree() {
         fitView
         minZoom={0.05}
         maxZoom={1.5}
+        panOnScroll={false}
+        panOnDrag={true}
+        zoomOnPinch={true}
+        zoomOnDoubleClick={false}
       >
         <Background color="#d6cdc5" gap={20} size={1} />
         <Controls showInteractive={false} position="bottom-right" />
@@ -199,46 +203,47 @@ export default function FamilyTree() {
         {/* Responsive Legend Panel */}
         <Panel position="top-left" className={cn(
           "bg-white/95 backdrop-blur shadow-xl border border-stone-200 transition-all duration-300 overflow-hidden",
-          showLegend ? "w-64 rounded-2xl p-4" : "w-10 h-10 rounded-full p-0 flex items-center justify-center"
+          showLegend ? "w-64 rounded-2xl p-4" : "w-10 h-10 rounded-full p-0 flex items-center justify-center sm:w-64 sm:rounded-2xl sm:p-4"
         )}>
-          {showLegend ? (
-            <>
-              <div className="flex items-center justify-between mb-4">
-                <h1 className="text-lg font-bold text-amber-900 flex items-center gap-2">🌳 Gia Phả</h1>
-                <button onClick={() => setShowLegend(false)} className="p-1 hover:bg-stone-100 rounded-full">
-                  <X className="w-4 h-4 text-stone-400" />
-                </button>
+          {/* Always show on desktop, toggle on mobile */}
+          <div className={cn("flex flex-col h-full", !showLegend && "sm:flex hidden")}>
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-lg font-bold text-amber-900 flex items-center gap-2">🌳 Gia Phả</h1>
+              <button onClick={() => setShowLegend(false)} className="sm:hidden p-1 hover:bg-stone-100 rounded-full">
+                <X className="w-4 h-4 text-stone-400" />
+              </button>
+            </div>
+            
+            <div className="space-y-3 border-t border-stone-100 pt-4 text-left">
+              <div className="flex items-center gap-3 text-xs text-stone-600">
+                <div className="w-8 border-t-2 border-dashed border-pink-300" />
+                <span>Quan hệ Vợ - Chồng</span>
               </div>
-              
-              <div className="space-y-3 border-t border-stone-100 pt-4">
-                <div className="flex items-center gap-3 text-xs text-stone-600">
-                  <div className="w-8 border-t-2 border-dashed border-pink-300" />
-                  <span>Quan hệ Vợ - Chồng</span>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-stone-600">
-                  <div className="w-8 border-t-2 border-slate-300" />
-                  <span>Quan hệ Cha/Mẹ - Con</span>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-stone-600">
-                  <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center text-[10px]">👨</div>
-                  <span>Thành viên Nam</span>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-stone-600">
-                  <div className="w-5 h-5 rounded-full bg-pink-50 flex items-center justify-center text-[10px]">👩</div>
-                  <span>Thành viên Nữ</span>
-                </div>
+              <div className="flex items-center gap-3 text-xs text-stone-600">
+                <div className="w-8 border-t-2 border-slate-300" />
+                <span>Quan hệ Cha/Mẹ - Con</span>
               </div>
+              <div className="flex items-center gap-3 text-xs text-stone-600">
+                <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center text-[10px]">👨</div>
+                <span>Thành viên Nam</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-stone-600">
+                <div className="w-5 h-5 rounded-full bg-pink-50 flex items-center justify-center text-[10px]">👩</div>
+                <span>Thành viên Nữ</span>
+              </div>
+            </div>
 
-              <div className="mt-6 pt-4 border-t border-stone-100 flex flex-col gap-2">
-                <Link href="/" className="inline-flex items-center justify-center px-4 py-2 bg-amber-800 text-white text-xs font-bold rounded-lg hover:bg-amber-900 transition">
-                  ← Về trang chủ
-                </Link>
-              </div>
-            </>
-          ) : (
+            <div className="mt-6 pt-4 border-t border-stone-100 flex flex-col gap-2">
+              <Link href="/" className="inline-flex items-center justify-center px-4 py-2 bg-amber-800 text-white text-xs font-bold rounded-lg hover:bg-amber-900 transition">
+                ← Về trang chủ
+              </Link>
+            </div>
+          </div>
+
+          {!showLegend && (
             <button 
               onClick={() => setShowLegend(true)}
-              className="w-full h-full flex items-center justify-center text-lg hover:bg-stone-50 transition"
+              className="sm:hidden w-full h-full flex items-center justify-center text-lg hover:bg-stone-50 transition"
               title="Xem chú thích"
             >
               ℹ️
